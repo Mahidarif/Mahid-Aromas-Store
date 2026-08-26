@@ -1,0 +1,194 @@
+/* ─── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,900;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap');
+
+/* ─── Tailwind Directives ──────────────────────────────────────────────────── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS Custom Properties ────────────────────────────────────────────────── */
+:root {
+  --color-midnight:   #0A0E1A;
+  --color-charcoal:   #12182B;
+  --color-surface:    #1A2035;
+  --color-gold:       #C9A84C;
+  --color-gold-light: #E8C97A;
+  --color-champagne:  #F7E7CE;
+  --color-cream:      #FAF6F0;
+  --transition-luxury: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Base Resets & Defaults ───────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-charcoal text-text-primary font-sans;
+    background-color: var(--color-charcoal);
+    color: #F0EBE1;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+    letter-spacing: -0.01em;
+  }
+
+  /* Custom scrollbar — subtle gold on dark */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-midnight);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(201, 168, 76, 0.3);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(201, 168, 76, 0.5);
+  }
+
+  /* Remove blue highlight on tap (mobile) */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  img {
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+}
+
+/* ─── Reusable Component Classes ───────────────────────────────────────────── */
+@layer components {
+
+  /* Buttons */
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl
+           font-sans font-medium tracking-wide text-midnight text-sm
+           transition-all duration-300 ease-luxury select-none;
+    background: linear-gradient(135deg, #9B7A2A 0%, #E8C97A 45%, #C9A84C 70%, #9B7A2A 100%);
+    background-size: 200% auto;
+  }
+  .btn-gold:hover {
+    background-position: right center;
+    box-shadow: 0 0 30px rgba(201, 168, 76, 0.35);
+    transform: translateY(-1px);
+  }
+  .btn-gold:active {
+    transform: translateY(0);
+  }
+
+  .btn-outline-gold {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl
+           font-sans font-medium tracking-wide text-gold text-sm
+           border border-gold/40 bg-transparent
+           transition-all duration-300 ease-luxury select-none;
+  }
+  .btn-outline-gold:hover {
+    @apply border-gold bg-gold/10;
+    box-shadow: 0 0 20px rgba(201, 168, 76, 0.15);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
+           text-text-secondary text-sm font-sans
+           transition-all duration-200 hover:text-text-primary hover:bg-surface select-none;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-surface rounded-2xl border border-white/5
+           transition-all duration-500 ease-luxury;
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.4);
+  }
+  .card:hover {
+    @apply border-gold/20;
+    box-shadow: 0 8px 48px rgba(0, 0, 0, 0.55), 0 0 20px rgba(201, 168, 76, 0.08);
+    transform: translateY(-3px);
+  }
+
+  /* Gold shimmer text */
+  .text-gold-shimmer {
+    background: linear-gradient(135deg, #9B7A2A 0%, #E8C97A 40%, #C9A84C 60%, #9B7A2A 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 4s linear infinite;
+  }
+
+  /* Glass panel */
+  .glass {
+    @apply border border-white/5;
+    background: rgba(26, 32, 53, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* Input */
+  .input-luxury {
+    @apply w-full bg-surface-2 border border-white/10 rounded-xl px-4 py-3
+           text-text-primary placeholder-text-muted text-sm font-sans
+           focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20
+           transition-all duration-200;
+  }
+
+  /* Section heading */
+  .section-title {
+    @apply font-serif text-3xl md:text-4xl font-bold text-text-primary leading-tight;
+  }
+  .section-subtitle {
+    @apply font-serif text-lg italic text-gold/80;
+  }
+
+  /* Gold divider line */
+  .divider-gold {
+    @apply w-16 h-px mx-auto;
+    background: linear-gradient(to right, transparent, #C9A84C, transparent);
+  }
+
+  /* Trust badge */
+  .trust-badge {
+    @apply flex items-center gap-2 text-text-secondary text-xs font-sans;
+  }
+}
+
+/* ─── Utility Layer ────────────────────────────────────────────────────────── */
+@layer utilities {
+  .ease-luxury {
+    transition-timing-function: var(--transition-luxury);
+  }
+
+  /* Hide scrollbar but keep scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Gradient border utility */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(var(--color-surface), var(--color-surface)) padding-box,
+                linear-gradient(135deg, #9B7A2A, #E8C97A, #9B7A2A) border-box;
+    border: 1px solid transparent;
+  }
+
+  /* Text stroke */
+  .text-stroke-gold {
+    -webkit-text-stroke: 1px rgba(201, 168, 76, 0.5);
+    color: transparent;
+  }
+}
