@@ -301,14 +301,14 @@ export default function Navbar({ cartCount: propCartCount }) {
                 <Search size={19} />
               </button>
 
-              {/* Account / Sign In */}
-              <Link
+              {/* Account / Sign In (Temporarily Hidden) */}
+              {/* <Link
                 to={isLoggedIn ? '/account' : '/login'}
                 className="w-10 h-10 rounded-xl text-text-secondary hover:text-gold hover:bg-surface-2 transition-colors hidden sm:flex items-center justify-center"
                 aria-label="User Account"
               >
                 <User size={19} />
-              </Link>
+              </Link> */}
 
               {/* Prominent Cart Trigger with Luminous Counter Badge (min 42x42 on mobile) */}
               <button
@@ -533,7 +533,8 @@ export default function Navbar({ cartCount: propCartCount }) {
                   <span>Cash on Delivery across Pakistan</span>
                 </div>
 
-                {isLoggedIn ? (
+                {/* Account / Login CTAs (Temporarily Hidden) */}
+                {/* {isLoggedIn ? (
                   <Link
                     to="/account"
                     onClick={() => setMobileOpen(false)}
@@ -558,7 +559,7 @@ export default function Navbar({ cartCount: propCartCount }) {
                       Register
                     </Link>
                   </div>
-                )}
+                )} */}
               </div>
             </motion.div>
           </div>
