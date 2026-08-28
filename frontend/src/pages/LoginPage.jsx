@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   AlertCircle,
   Loader2,
-  Sparkles,
 } from 'lucide-react';
 import { authAPI } from '../api/axiosConfig';
 import SEO from '../components/SEO';
@@ -61,13 +60,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Quick fill helper for admin testing
-  const fillAdminCredentials = () => {
-    setEmail('admin@mahidaromas.com');
-    setPassword('Admin@1234');
-    setError(null);
   };
 
   return (
@@ -188,28 +180,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Admin Fill Helper Box */}
-          <div className="pt-2 border-t border-white/5">
-            <div className="bg-surface-2 p-3.5 rounded-xl border border-gold/15 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-sans font-semibold text-gold flex items-center gap-1">
-                  <Sparkles size={12} /> Admin Credentials (Quick Fill)
-                </span>
-                <button
-                  type="button"
-                  onClick={fillAdminCredentials}
-                  className="text-[10px] text-text-primary hover:text-gold underline font-sans"
-                >
-                  Auto-Fill
-                </button>
-              </div>
-              <div className="text-[11px] font-mono text-text-muted space-y-0.5">
-                <div>Email: <span className="text-text-secondary">admin@mahidaromas.com</span></div>
-                <div>Pass: <span className="text-text-secondary">Admin@1234</span></div>
-              </div>
-            </div>
-          </div>
 
           {/* Footer note */}
           <div className="text-center text-xs text-text-muted font-sans flex items-center justify-center gap-1.5">

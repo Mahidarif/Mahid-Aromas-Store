@@ -70,9 +70,9 @@ export default function CartDrawer() {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-            className="absolute inset-y-0 right-0 w-full sm:max-w-md flex"
+            className="absolute inset-y-0 right-0 w-full sm:max-w-md flex h-full max-h-screen"
           >
-            <div className="w-full bg-midnight border-l border-white/10 shadow-2xl flex flex-col justify-between overflow-hidden">
+            <div className="w-full h-full bg-midnight border-l border-white/10 shadow-2xl flex flex-col overflow-hidden">
               
               {/* Drawer Header */}
               <div className="p-4 sm:p-6 border-b border-white/8 flex items-center justify-between bg-surface-2/40 flex-shrink-0">
@@ -137,7 +137,7 @@ export default function CartDrawer() {
               </div>
 
               {/* Items List (Scrollable) */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5 divide-y divide-white/5">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-3.5 divide-y divide-white/5 overscroll-contain">
                 {cartItems.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-16">
                     <div className="w-14 h-14 rounded-2xl bg-surface-2 border border-gold/20 flex items-center justify-center text-gold text-2xl">
@@ -261,7 +261,7 @@ export default function CartDrawer() {
 
               {/* Drawer Footer */}
               {cartItems.length > 0 && (
-                <div className="p-4 sm:p-6 border-t border-white/10 bg-surface-2/60 space-y-3.5 flex-shrink-0">
+                <div className="p-4 sm:p-5 border-t border-white/10 bg-midnight/95 backdrop-blur-md space-y-3 flex-shrink-0 z-10 shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
                   <div className="space-y-1 text-xs font-sans">
                     <div className="flex items-center justify-between text-text-muted">
                       <span>Subtotal</span>
