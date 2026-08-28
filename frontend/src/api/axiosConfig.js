@@ -1,17 +1,22 @@
 import axios from 'axios';
 
 // ─── Base Instance ─────────────────────────────────────────────────────────────
-// Uses VITE_API_URL directly, strips trailing slashes/accidental trailing /api to prevent duplication
-const rawBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Uses VITE_API_URL, falls back to live Render backend in production or localhost in development
+const rawBaseURL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD
+    ? 'https://mahid-aromas-store.onrender.com'
+    : 'http://localhost:5000');
+
 const baseURL = rawBaseURL.replace(/\/+$/, '').replace(/\/api\/?$/, '');
 
 const api = axios.create({
-  baseURL: baseURL || 'http://localhost:5000',
+  baseURL: baseURL || 'https://mahid-aromas-store.onrender.com',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000, // 15 s timeout — fail fast rather than hang
+  timeout: 60000, // 60s timeout to comfortably accommodate Render cold starts
 });
 
 // ─── Request Interceptor: Attach JWT ─────────────────────────────────────────
