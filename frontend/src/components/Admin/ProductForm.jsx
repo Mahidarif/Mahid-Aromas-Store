@@ -184,7 +184,7 @@ export default function ProductForm({ product, onClose, onSuccess }) {
         uploadForm.append('file', file);
         uploadForm.append('upload_preset', 'mahid_aromas');
 
-        const res = await api.post('/upload', uploadForm, {
+        const res = await api.post('/api/upload', uploadForm, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 

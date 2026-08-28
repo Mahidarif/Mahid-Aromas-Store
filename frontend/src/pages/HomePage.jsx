@@ -48,7 +48,7 @@ export default function HomePage() {
     (async () => {
       try {
         setLoading(true);
-        const { data } = await api.get('/products', {
+        const { data } = await api.get('/api/products', {
           params: { limit: 4 },
         });
         if (isMounted) setFeatured(data.data || []);

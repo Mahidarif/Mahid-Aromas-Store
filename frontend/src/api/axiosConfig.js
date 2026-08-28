@@ -1,18 +1,13 @@
 import axios from 'axios';
 
 // ─── Base Instance ─────────────────────────────────────────────────────────────
-// Automatically normalizes VITE_API_URL to ensure /api suffix is present in both dev and production
-const resolveBaseURL = () => {
-  let url = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  url = url.trim().replace(/\/+$/, '');
-  if (!url.endsWith('/api')) {
-    url = `${url}/api`;
-  }
-  return url;
-};
+// Uses VITE_API_URL directly, strips trailing slashes/accidental trailing /api to prevent duplication
+const rawBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = rawBaseURL.replace(/\/+$/, '').replace(/\/api\/?$/, '');
 
 const api = axios.create({
-  baseURL: resolveBaseURL(),
+  baseURL: baseURL || 'http://localhost:5000',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -63,41 +58,41 @@ export default api;
 // Import these in pages/components for clean, self-documenting API calls.
 
 export const authAPI = {
-  register: (data) => api.post('/auth/register', data),
-  login: (data) => api.post('/auth/login', data),
-  getProfile: () => api.get('/auth/profile'),
-  updateProfile: (data) => api.put('/auth/profile', data),
-  addAddress: (data) => api.post('/auth/address', data),
+  register: (data) => api.post('/api/auth/register', data),
+  login: (data) => api.post('/api/auth/login', data),
+  getProfile: () => api.get('/api/auth/profile'),
+  updateProfile: (data) => api.put('/api/auth/profile', data),
+  addAddress: (data) => api.post('/api/auth/address', data),
 };
 
 export const productsAPI = {
-  getAll: (params) => api.get('/products', { params }),
-  getById: (id) => api.get(`/products/${id}`),
-  create: (data) => api.post('/products', data),
-  update: (id, data) => api.put(`/products/${id}`, data),
-  delete: (id) => api.delete(`/products/${id}`),
-  getAllAdmin: (params) => api.get('/products/admin/all', { params }),
+  getAll: (params) => api.get('/api/products', { params }),
+  getById: (id) => api.get(`/api/products/${id}`),
+  create: (data) => api.post('/api/products', data),
+  update: (id, data) => api.put(`/api/products/${id}`, data),
+  delete: (id) => api.delete(`/api/products/${id}`),
+  getAllAdmin: (params) => api.get('/api/products/admin/all', { params }),
 };
 
 export const ordersAPI = {
-  create: (data) => api.post('/orders', data),
-  getMyOrders: () => api.get('/orders/my'),
-  getById: (id) => api.get(`/orders/${id}`),
-  stripeIntent: (data) => api.post('/orders/stripe/payment-intent', data),
-  jazzCashInitiate: (data) => api.post('/orders/jazzcash/initiate', data),
+  create: (data) => api.post('/api/orders', data),
+  getMyOrders: () => api.get('/api/orders/my'),
+  getById: (id) => api.get(`/api/orders/${id}`),
+  stripeIntent: (data) => api.post('/api/orders/stripe/payment-intent', data),
+  jazzCashInitiate: (data) => api.post('/api/orders/jazzcash/initiate', data),
 };
 
 export const adminAPI = {
   // Orders operations
-  getOrders: (params) => api.get('/admin/orders', { params }),
-  updateStatus: (id, data) => api.put(`/admin/orders/${id}/status`, data),
-  updateTracking: (id, data) => api.put(`/admin/orders/${id}/tracking`, data),
-  generateAWB: (id) => api.post(`/admin/orders/${id}/generate-awb`),
-  getInvoiceUrl: (id) => `/api/admin/orders/${id}/invoice`,
+  getOrders: (params) => api.get('/api/admin/orders', { params }),
+  updateStatus: (id, data) => api.put(`/api/admin/orders/${id}/status`, data),
+  updateTracking: (id, data) => api.put(`/api/admin/orders/${id}/tracking`, data),
+  generateAWB: (id) => api.post(`/api/admin/orders/${id}/generate-awb`),
+  getInvoiceUrl: (id) => `${baseURL}/api/admin/orders/${id}/invoice`,
 
   // Product catalog operations
-  createProduct: (data) => api.post('/products', data),
-  updateProduct: (id, data) => api.put(`/products/${id}`, data),
-  deleteProduct: (id) => api.delete(`/products/${id}`),
-  getProductsAdmin: (params) => api.get('/products', { params }),
+  createProduct: (data) => api.post('/api/products', data),
+  updateProduct: (id, data) => api.put(`/api/products/${id}`, data),
+  deleteProduct: (id) => api.delete(`/api/products/${id}`),
+  getProductsAdmin: (params) => api.get('/api/products', { params }),
 };

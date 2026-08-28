@@ -9,22 +9,22 @@ import api from './axiosConfig';
 
 // ─── Fetch All Products (Admin) ───────────────────────────────────────────────
 export const fetchAdminProducts = async (params = {}) => {
-  return await api.get('/products/admin/all', { params });
+  return await api.get('/api/products/admin/all', { params });
 };
 
 // ─── Create New Product ───────────────────────────────────────────────────────
 export const createProduct = async (productData) => {
-  return await api.post('/products', productData);
+  return await api.post('/api/products', productData);
 };
 
 // ─── Update Existing Product ──────────────────────────────────────────────────
 export const updateProduct = async (id, productData) => {
-  return await api.put(`/products/${id}`, productData);
+  return await api.put(`/api/products/${id}`, productData);
 };
 
 // ─── Delete / Unpublish Product ───────────────────────────────────────────────
 export const deleteProduct = async (id, permanent = false) => {
-  return await api.delete(`/products/${id}`, {
+  return await api.delete(`/api/products/${id}`, {
     params: { permanent },
   });
 };
@@ -34,7 +34,7 @@ export const uploadProductImage = async (file) => {
   const formData = new FormData();
   formData.append('image', file);
 
-  const response = await api.post('/upload', formData, {
+  const response = await api.post('/api/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },

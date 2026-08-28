@@ -50,7 +50,7 @@ export default function BestSellersPage() {
         setLoading(true);
         setError(null);
 
-        const response = await api.get('/products', {
+        const response = await api.get('/api/products', {
           params: { limit: 50 },
         });
 

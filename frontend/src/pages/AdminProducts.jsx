@@ -66,7 +66,7 @@ export default function AdminProducts() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.get('/products', { params: { limit: 200 } });
+      const res = await api.get('/api/products', { params: { limit: 200 } });
       setProducts(res.data?.data || []);
     } catch (err) {
       setError(

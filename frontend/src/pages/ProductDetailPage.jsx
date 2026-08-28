@@ -58,7 +58,7 @@ export default function ProductDetailPage() {
         setError(null);
         setSelectedImageIdx(0);
 
-        const response = await api.get(`/products/${id}`);
+        const response = await api.get(`/api/products/${id}`);
         const data = response.data?.data || response.data;
 
         if (isMounted && data) {
