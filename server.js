@@ -63,21 +63,36 @@ const connectDB = async () => {
 
 connectDB();
 
-// ─── Health Check ─────────────────────────────────────────────────────────────
-app.get('/api/health', (req, res) => {
+// ─── Health Checks ────────────────────────────────────────────────────────────
+app.get(['/', '/api/health'], (req, res) => {
   res.status(200).json({
     status: 'OK',
+    service: 'Mahid Aromas API',
     environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString(),
   });
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/auth',     require('./routes/authRoutes'));
-app.use('/api/products', require('./routes/productRoutes'));
-app.use('/api/orders',   require('./routes/orderRoutes'));
-app.use('/api/admin',    require('./routes/adminRoutes'));
-app.use('/api/upload',   require('./routes/uploadRoutes'));
+const authRoutes = require('./routes/authRoutes');
+const productRoutes = require('./routes/productRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+
+// Primary /api endpoints
+app.use('/api/auth',     authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders',   orderRoutes);
+app.use('/api/admin',    adminRoutes);
+app.use('/api/upload',   uploadRoutes);
+
+// Direct alias routes fallback in case /api prefix is omitted by a client
+app.use('/auth',         authRoutes);
+app.use('/products',     productRoutes);
+app.use('/orders',       orderRoutes);
+app.use('/admin',        adminRoutes);
+app.use('/upload',       uploadRoutes);
 
 // ─── 404 & Error Handlers (must be after all routes) ─────────────────────────
 app.use(notFound);

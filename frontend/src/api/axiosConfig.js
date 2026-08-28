@@ -1,9 +1,18 @@
 import axios from 'axios';
 
 // ─── Base Instance ─────────────────────────────────────────────────────────────
-// Uses VITE_API_URL in production (Render backend), falls back to http://localhost:5000/api in development
+// Automatically normalizes VITE_API_URL to ensure /api suffix is present in both dev and production
+const resolveBaseURL = () => {
+  let url = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  url = url.trim().replace(/\/+$/, '');
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  return url;
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: resolveBaseURL(),
   headers: {
     'Content-Type': 'application/json',
   },
