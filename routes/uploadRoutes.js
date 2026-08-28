@@ -5,7 +5,7 @@ const { protect, adminOnly } = require('../middlewares/authMiddleware');
 
 /**
  * POST /api/upload
- * Protected route for administrators to upload product media to Cloudinary.
+ * Protected route for administrators to upload perfume media to Cloudinary.
  * Accepts a single file in multipart/form-data under the field name "image".
  */
 router.post(

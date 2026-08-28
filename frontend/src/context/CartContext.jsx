@@ -38,7 +38,7 @@ export function CartProvider({ children }) {
       if (existingIdx !== -1) {
         // Cap at the available stock
         const updated = [...prev];
-        const newQty  = Math.min(
+        const newQty = Math.min(
           updated[existingIdx].quantity + quantity,
           variation.stockQuantity || 99
         );
@@ -50,18 +50,18 @@ export function CartProvider({ children }) {
         ...prev,
         {
           product: {
-            _id:   product._id,
-            name:  product.name,
+            _id: product._id,
+            name: product.name,
             brand: product.brand,
-            slug:  product.slug,
+            slug: product.slug,
             images: product.images || [],
           },
           variation: {
-            _id:           variation._id.toString(),
-            size:          variation.size,
+            _id: variation._id.toString(),
+            size: variation.size,
             concentration: variation.concentration,
-            price:         variation.price,
-            sku:           variation.sku,
+            price: variation.price,
+            sku: variation.sku,
             stockQuantity: variation.stockQuantity,
           },
           quantity,
@@ -105,9 +105,10 @@ export function CartProvider({ children }) {
 
   const shippingFee = cartTotal >= 5000 ? 0 : 200;
 
-  // ── Drawer helpers ────────────────────────────────────────────────────
-  const openDrawer  = useCallback(() => setIsDrawerOpen(true),  []);
+  // ── Drawer / Slide-out Cart helpers ───────────────────────────────────
+  const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
+  const toggleDrawer = useCallback(() => setIsDrawerOpen((prev) => !prev), []);
 
   return (
     <CartContext.Provider
@@ -117,8 +118,13 @@ export function CartProvider({ children }) {
         cartTotal,
         shippingFee,
         isDrawerOpen,
+        isCartOpen: isDrawerOpen, // alias for isCartOpen
         openDrawer,
+        openCart: openDrawer, // alias for openCart
         closeDrawer,
+        closeCart: closeDrawer, // alias for closeCart
+        toggleDrawer,
+        toggleCart: toggleDrawer, // alias for toggleCart
         addToCart,
         removeFromCart,
         updateQuantity,

@@ -1,225 +1,233 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Star, Plus, Minus, Heart } from 'lucide-react';
+import {
+  ShoppingBag,
+  ArrowRight,
+  Heart,
+  Sparkles,
+  Check,
+  Loader2,
+} from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
-// ─── Helper: format PKR ────────────────────────────────────────────────────────
 const formatPKR = (amount) =>
-  new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 })
-    .format(amount)
-    .replace('PKR', 'PKR ');
+  `Rs. ${Number(amount || 0).toLocaleString('en-PK')}`;
 
+/**
+ * Mobile CRO & Luxury ProductCard Component
+ */
 export default function ProductCard({ product }) {
   const { addToCart } = useCart();
-  const [quantity,     setQuantity]     = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
-  const [addedFeedback,setAddedFeedback]= useState(false);
-  const [imgError,     setImgError]     = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   if (!product) return null;
 
   const {
-    _id, name, brand, rating = 0, numReviews = 0,
-    images = [], variations = [], slug,
+    _id,
+    name,
+    brand = 'Mahid Aromas',
+    fragranceFamily,
+    gender = 'Unisex',
+    notes = {},
+    images = [],
+    variations = [],
+    slug,
   } = product;
 
-  // Use the first variation as the display price
+  // Calculate lowest starting price across variations
+  const startingPrice =
+    product.startingPrice ||
+    (variations.length > 0
+      ? Math.min(...variations.map((v) => v.price))
+      : 0);
+
   const primaryVariation = variations[0];
-  const startingPrice    = primaryVariation?.price ?? 0;
-  const compareAtPrice   = primaryVariation?.compareAtPrice;
-  const isOnSale         = compareAtPrice && compareAtPrice > startingPrice;
-  const inStock          = variations.some((v) => v.stockQuantity > 0);
-  const primaryImage     = !imgError && images[0];
+  const compareAtPrice = primaryVariation?.compareAtPrice;
+  const isOnSale = compareAtPrice && compareAtPrice > startingPrice;
 
-  // Rendered star rating
-  const fullStars = Math.floor(rating);
-  const halfStar  = rating - fullStars >= 0.5;
+  const totalStock = variations.reduce(
+    (sum, v) => sum + (v.stockQuantity || 0),
+    0
+  );
+  const inStock = totalStock > 0;
 
-  const handleAdd = () => {
-    if (!inStock) return;
-    addToCart(product, primaryVariation, quantity);
-    setAddedFeedback(true);
-    setTimeout(() => setAddedFeedback(false), 2000);
+  const primaryImage =
+    !imgError && images[0]
+      ? images[0]
+      : 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=800&auto=format&fit=crop&q=80';
+
+  const productUrl = `/products/${slug || _id}`;
+
+  const handleQuickAdd = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!inStock || !primaryVariation) return;
+
+    setAdding(true);
+    addToCart(product, primaryVariation, 1);
+
+    setTimeout(() => {
+      setAdding(false);
+      setJustAdded(true);
+      setTimeout(() => setJustAdded(false), 2000);
+    }, 350);
   };
-
-  const increment = (e) => { e.preventDefault(); setQuantity((q) => Math.min(q + 1, 10)); };
-  const decrement = (e) => { e.preventDefault(); setQuantity((q) => Math.max(q - 1, 1)); };
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: 0, y: 15 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.15 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="card group flex flex-col overflow-hidden"
+      viewport={{ once: true, amount: 0.05 }}
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      className="card group flex flex-col justify-between overflow-hidden border border-white/8 hover:border-gold/40 rounded-xl sm:rounded-2xl bg-surface-2/40 hover:bg-surface-2/80 transition-all duration-300 shadow-card hover:shadow-gold-sm"
     >
-      {/* ── Image wrapper ─────────────────────────────────────────────────── */}
-      <Link
-        to={`/products/${slug || _id}`}
-        className="relative block overflow-hidden aspect-[3/4] bg-surface-2 flex-shrink-0"
-        tabIndex={-1}
-      >
-        {primaryImage ? (
+      {/* ── 1. Image Container with Aspect Ratio ─────────────────────────────── */}
+      <div className="relative block overflow-hidden aspect-[3/4] bg-[#0B0F19] flex-shrink-0">
+        <Link to={productUrl} className="block w-full h-full">
           <img
             src={primaryImage}
             alt={name}
-            className="w-full h-full object-cover transition-transform duration-700 ease-luxury group-hover:scale-105"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
             onError={() => setImgError(true)}
             loading="lazy"
           />
-        ) : (
-          /* Fallback placeholder */
-          <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-surface-2">
-            <div className="w-16 h-16 rounded-full border border-gold/20 flex items-center justify-center">
-              <span className="text-2xl">🌸</span>
-            </div>
-            <span className="text-text-muted text-xs font-sans">No image</span>
-          </div>
-        )}
 
-        {/* Gradient overlay on hover */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent
-                        opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="absolute inset-0 bg-gradient-to-t from-midnight/80 via-transparent to-transparent opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
+        </Link>
 
-        {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          {isOnSale && (
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-sans font-semibold text-midnight"
-                  style={{ background: 'linear-gradient(135deg, #9B7A2A, #E8C97A)' }}>
-              SALE
-            </span>
-          )}
-          {!inStock && (
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-sans font-semibold bg-red-500/20 text-red-400 border border-red-500/20">
-              OUT OF STOCK
+        {/* Top Badges (Compact on mobile) */}
+        <div className="absolute top-2 sm:top-3.5 left-2 sm:left-3.5 flex flex-col gap-1 pointer-events-none">
+          <span
+            className={`px-2 sm:px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-sans font-bold uppercase tracking-wider backdrop-blur-md border shadow-xs ${
+              gender === 'Men'
+                ? 'bg-sky-950/85 text-sky-300 border-sky-500/30'
+                : gender === 'Women'
+                ? 'bg-rose-950/85 text-rose-300 border-rose-500/30'
+                : 'bg-gold/25 text-gold border-gold/40'
+            }`}
+          >
+            {gender === 'Men' ? 'Him' : gender === 'Women' ? 'Her' : 'Unisex'}
+          </span>
+
+          {fragranceFamily && (
+            <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-midnight/80 backdrop-blur-md border border-white/10 text-[10px] font-sans text-text-secondary">
+              {fragranceFamily}
             </span>
           )}
         </div>
 
-        {/* Wishlist button */}
-        <button
-          onClick={(e) => { e.preventDefault(); setIsWishlisted((w) => !w); }}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full glass flex items-center justify-center
-                     opacity-0 group-hover:opacity-100 transition-all duration-300
-                     hover:scale-110 active:scale-95"
-          aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-        >
-          <Heart
-            size={14}
-            className={`transition-colors duration-200 ${isWishlisted ? 'fill-red-400 text-red-400' : 'text-text-primary'}`}
-          />
-        </button>
-      </Link>
+        {/* Wishlist & Out of Stock */}
+        <div className="absolute top-2 sm:top-3.5 right-2 sm:right-3.5 flex flex-col items-end gap-1.5">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              setIsWishlisted((prev) => !prev);
+            }}
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-midnight/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-text-muted hover:text-red-400 hover:border-red-400/30 transition-all active:scale-90"
+            aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+          >
+            <Heart
+              size={13}
+              className={`transition-colors ${
+                isWishlisted ? 'fill-red-400 text-red-400' : ''
+              }`}
+            />
+          </button>
 
-      {/* ── Card body ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 p-4 gap-3">
+          {!inStock && (
+            <span className="px-2 py-0.5 rounded-full bg-red-500/80 backdrop-blur-md text-[9px] font-sans font-bold text-white uppercase tracking-wider">
+              Sold Out
+            </span>
+          )}
+        </div>
+      </div>
 
-        {/* Brand */}
-        <p className="text-[10px] font-sans tracking-widest uppercase text-gold/70">{brand}</p>
+      {/* ── 2. Card Content Body (Compact for 2-column mobile) ───────────────── */}
+      <div className="flex flex-col flex-1 p-3 sm:p-5 gap-1.5 sm:gap-3">
+        <p className="text-[9px] sm:text-[11px] font-sans tracking-widest uppercase text-text-muted font-medium truncate">
+          {brand}
+        </p>
 
-        {/* Product name */}
         <Link
-          to={`/products/${slug || _id}`}
-          className="font-serif text-lg font-semibold text-text-primary leading-snug
-                     hover:text-gold transition-colors duration-200 line-clamp-2"
+          to={productUrl}
+          className="font-serif text-sm sm:text-lg font-bold text-text-primary group-hover:text-gold transition-colors duration-200 line-clamp-1 leading-snug"
         >
           {name}
         </Link>
 
-        {/* Star rating */}
-        {numReviews > 0 && (
-          <div className="flex items-center gap-1.5">
-            <div className="flex" aria-label={`${rating} out of 5 stars`}>
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  size={11}
-                  className={
-                    i < fullStars
-                      ? 'fill-gold text-gold'
-                      : i === fullStars && halfStar
-                      ? 'fill-gold/50 text-gold'
-                      : 'fill-transparent text-text-muted'
-                  }
-                />
-              ))}
-            </div>
-            <span className="text-xs text-text-muted font-sans">({numReviews})</span>
-          </div>
+        {/* Scent Notes Teaser (hidden on small mobile to save vertical space) */}
+        {notes.top && notes.top.length > 0 && (
+          <p className="hidden sm:block text-xs text-text-secondary font-sans line-clamp-1">
+            <span className="text-gold/80 font-medium">Notes:</span>{' '}
+            {notes.top.slice(0, 2).join(', ')}
+          </p>
         )}
 
-        {/* Price */}
-        <div className="flex items-baseline gap-2 mt-auto">
-          <span className="font-serif text-xl font-semibold text-text-primary">
-            {formatPKR(startingPrice)}
-          </span>
-          {isOnSale && (
-            <span className="text-sm text-text-muted line-through font-sans">
-              {formatPKR(compareAtPrice)}
+        {/* Pricing Display in PKR */}
+        <div className="pt-1.5 sm:pt-2 mt-auto border-t border-white/5 flex items-baseline justify-between">
+          <div>
+            <span className="text-[8px] sm:text-[10px] font-sans text-text-muted block">
+              Starting at
             </span>
-          )}
-          {variations.length > 1 && (
-            <span className="text-xs text-text-muted font-sans ml-auto">
-              {variations.length} sizes
-            </span>
-          )}
-        </div>
-
-        {/* ── Add to cart row ───────────────────────────────────────────── */}
-        {inStock ? (
-          <div className="flex items-center gap-2 mt-1">
-            {/* Quantity incrementor */}
-            <div className="flex items-center border border-white/10 rounded-lg overflow-hidden flex-shrink-0">
-              <button
-                onClick={decrement}
-                disabled={quantity <= 1}
-                className="w-8 h-8 flex items-center justify-center text-text-secondary
-                           hover:text-text-primary hover:bg-surface-2 transition-all duration-150
-                           disabled:opacity-30 disabled:cursor-not-allowed"
-                aria-label="Decrease quantity"
-              >
-                <Minus size={12} />
-              </button>
-              <span className="w-8 h-8 flex items-center justify-center text-sm font-sans text-text-primary border-x border-white/10 select-none">
-                {quantity}
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-serif font-bold text-sm sm:text-base text-gold">
+                {formatPKR(startingPrice)}
               </span>
-              <button
-                onClick={increment}
-                disabled={quantity >= 10}
-                className="w-8 h-8 flex items-center justify-center text-text-secondary
-                           hover:text-text-primary hover:bg-surface-2 transition-all duration-150
-                           disabled:opacity-30 disabled:cursor-not-allowed"
-                aria-label="Increase quantity"
-              >
-                <Plus size={12} />
-              </button>
+              {isOnSale && (
+                <span className="text-[10px] text-text-muted line-through font-sans hidden sm:inline">
+                  {formatPKR(compareAtPrice)}
+                </span>
+              )}
             </div>
-
-            {/* Add to cart button */}
-            <motion.button
-              onClick={handleAdd}
-              whileTap={{ scale: 0.95 }}
-              className={`flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-sans font-medium
-                          transition-all duration-300 ease-luxury ${
-                            addedFeedback
-                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                              : 'btn-gold'
-                          }`}
-              aria-label="Add to cart"
-            >
-              <ShoppingBag size={13} />
-              {addedFeedback ? 'Added!' : 'Add to Cart'}
-            </motion.button>
           </div>
-        ) : (
-          <button
-            disabled
-            className="w-full h-9 rounded-lg text-xs font-sans text-text-muted bg-surface-2 border border-white/5 cursor-not-allowed mt-1"
-          >
-            Out of Stock
-          </button>
-        )}
+
+          <span className="text-[10px] font-sans text-text-muted">
+            {variations.length > 0 ? `${variations.length} sizes` : 'Extrait'}
+          </span>
+        </div>
+      </div>
+
+      {/* ── 3. Action Buttons (Always visible and touch-friendly on mobile) ──── */}
+      <div className="p-3 pt-0 sm:p-5 sm:pt-0 grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2.5">
+        <Link
+          to={productUrl}
+          className="btn-ghost border border-white/10 text-[11px] sm:text-xs py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-2 flex items-center justify-center gap-1 transition-all"
+        >
+          <span>Discover</span>
+          <ArrowRight size={12} />
+        </Link>
+
+        <button
+          type="button"
+          onClick={handleQuickAdd}
+          disabled={!inStock || adding}
+          className={`text-[11px] sm:text-xs py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-bold flex items-center justify-center gap-1 transition-all shadow-xs disabled:opacity-40 cursor-pointer ${
+            justAdded
+              ? 'bg-emerald-500/25 text-emerald-400 border border-emerald-500/40'
+              : 'btn-gold shadow-gold-sm'
+          }`}
+        >
+          {adding ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : justAdded ? (
+            <>
+              <Check size={12} />
+              <span>Added!</span>
+            </>
+          ) : inStock ? (
+            <>
+              <ShoppingBag size={12} />
+              <span>Add to Cart</span>
+            </>
+          ) : (
+            'Sold Out'
+          )}
+        </button>
       </div>
     </motion.article>
   );

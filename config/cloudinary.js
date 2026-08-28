@@ -3,28 +3,26 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
 
 // ─── Configure Cloudinary v2 SDK ─────────────────────────────────────────────
-if (process.env.CLOUDINARY_URL) {
-  cloudinary.config(process.env.CLOUDINARY_URL);
-} else {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key:    process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-  });
-}
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // ─── Configure Multer Cloudinary Storage Engine ──────────────────────────────
 const storage = new CloudinaryStorage({
-  cloudinary,
+  cloudinary: cloudinary,
   params: {
     folder: 'mahid_aromas_products',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+    allowed_formats: ['jpeg', 'png', 'jpg', 'webp'],
     transformation: [
       {
-        width: 1000,
-        crop: 'limit',
+        width: 800,
+        height: 1000,
+        crop: 'fill',
+        gravity: 'center',
         quality: 'auto',
-        fetch_format: 'auto',
+        format: 'webp',
       },
     ],
     public_id: (req, file) => {
@@ -37,7 +35,7 @@ const storage = new CloudinaryStorage({
   },
 });
 
-// File filter for image mime types
+// ─── File Filter ─────────────────────────────────────────────────────────────
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
   if (allowedMimeTypes.includes(file.mimetype)) {
@@ -51,10 +49,10 @@ const fileFilter = (req, file, cb) => {
 
 // ─── Initialize Multer Middleware ─────────────────────────────────────────────
 const upload = multer({
-  storage,
-  fileFilter,
+  storage: storage,
+  fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB maximum file size limit
+    fileSize: 5 * 1024 * 1024, // 5MB maximum limit
   },
 });
 

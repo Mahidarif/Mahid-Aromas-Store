@@ -17,32 +17,38 @@ import {
   Download,
   Loader2,
   DollarSign,
+  Phone,
+  MapPin,
+  Calendar,
+  Layers,
+  X,
+  CreditCard,
 } from 'lucide-react';
 import api, { adminAPI } from '../api/axiosConfig';
 
 const formatPKR = (amount) =>
-  `PKR ${Number(amount || 0).toLocaleString('en-PK')}`;
+  `Rs. ${Number(amount || 0).toLocaleString('en-PK')}`;
 
 const STATUS_CONFIG = {
   Processing: {
-    badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    dot: 'bg-amber-400',
+    badge: 'bg-amber-50 text-amber-700 border-amber-200',
+    dot: 'bg-amber-500',
   },
   'Ready to Ship': {
-    badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    dot: 'bg-blue-400',
+    badge: 'bg-blue-50 text-blue-700 border-blue-200',
+    dot: 'bg-blue-500',
   },
   Shipped: {
-    badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-    dot: 'bg-purple-400',
+    badge: 'bg-purple-50 text-purple-700 border-purple-200',
+    dot: 'bg-purple-500',
   },
   Delivered: {
-    badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    dot: 'bg-emerald-400',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    dot: 'bg-emerald-500',
   },
   Cancelled: {
-    badge: 'bg-red-500/10 text-red-400 border-red-500/20',
-    dot: 'bg-red-400',
+    badge: 'bg-rose-50 text-rose-700 border-rose-200',
+    dot: 'bg-rose-500',
   },
 };
 
@@ -56,6 +62,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionLoading, setActionLoading] = useState({});
   const [toastMessage, setToastMessage] = useState(null);
+  const [selectedOrderForSlip, setSelectedOrderForSlip] = useState(null);
 
   const showToast = (msg, type = 'success') => {
     setToastMessage({ text: msg, type });
@@ -90,7 +97,7 @@ export default function AdminDashboard() {
     fetchOrders();
   }, [fetchOrders]);
 
-  // ─── Handlers ───────────────────────────────────────────────────────────────
+  // ─── Status Update Handler ─────────────────────────────────────────────────
   const handleStatusChange = async (orderId, newStatus) => {
     try {
       setActionLoading((prev) => ({ ...prev, [`status-${orderId}`]: true }));
@@ -101,405 +108,456 @@ export default function AdminDashboard() {
       );
       showToast(`Order status updated to "${newStatus}"`);
     } catch (err) {
-      showToast(err.message || 'Failed to update status', 'error');
+      showToast(err.response?.data?.message || 'Status update failed', 'error');
     } finally {
       setActionLoading((prev) => ({ ...prev, [`status-${orderId}`]: false }));
     }
   };
 
-  const handleGenerateAWB = async (orderId) => {
-    try {
-      setActionLoading((prev) => ({ ...prev, [`awb-${orderId}`]: true }));
-      const res = await adminAPI.generateAWB(orderId);
-
-      setOrders((prev) =>
-        prev.map((o) => (o._id === orderId ? res.data.data : o))
-      );
-      showToast(`AWB Generated: ${res.data.data.courierTrackingNumber}`);
-    } catch (err) {
-      showToast(err.message || 'Failed to generate AWB', 'error');
-    } finally {
-      setActionLoading((prev) => ({ ...prev, [`awb-${orderId}`]: false }));
-    }
-  };
-
-  const handleDownloadInvoice = async (orderId, orderRef) => {
-    try {
-      setActionLoading((prev) => ({ ...prev, [`inv-${orderId}`]: true }));
-      const response = await api.get(`/admin/orders/${orderId}/invoice`, {
-        responseType: 'blob',
-      });
-
-      // Create blob link to trigger browser download
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Invoice-${orderRef}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      showToast(err.message || 'Failed to generate invoice PDF', 'error');
-    } finally {
-      setActionLoading((prev) => ({ ...prev, [`inv-${orderId}`]: false }));
-    }
-  };
-
-  // ─── Filter & Search ────────────────────────────────────────────────────────
-  const filteredOrders = orders.filter((order) => {
+  // ─── Filtered Orders Calculation ───────────────────────────────────────────
+  const filteredOrders = orders.filter((o) => {
     if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
-    const orderRef = `MA-${order._id.slice(-8).toUpperCase()}`.toLowerCase();
-    const customer = order.shippingAddress?.fullName?.toLowerCase() || '';
-    const phone = order.shippingAddress?.phone?.toLowerCase() || '';
-    const tracking = order.courierTrackingNumber?.toLowerCase() || '';
-
+    const q = searchQuery.toLowerCase();
     return (
-      orderRef.includes(query) ||
-      customer.includes(query) ||
-      phone.includes(query) ||
-      tracking.includes(query)
+      o._id?.toLowerCase().includes(q) ||
+      o.shippingAddress?.fullName?.toLowerCase().includes(q) ||
+      o.shippingAddress?.phone?.includes(q) ||
+      o.shippingAddress?.city?.toLowerCase().includes(q) ||
+      o.trackingNumber?.toLowerCase().includes(q)
     );
   });
 
-  // ─── Stats Calculation ──────────────────────────────────────────────────────
-  const totalRevenue = orders
-    .filter((o) => o.paymentStatus === 'Paid')
-    .reduce((acc, o) => acc + o.totalAmount, 0);
-
-  const processingCount = orders.filter((o) => o.orderStatus === 'Processing').length;
-  const readyToShipCount = orders.filter((o) => o.orderStatus === 'Ready to Ship').length;
+  // ─── Dashboard Metrics ─────────────────────────────────────────────────────
+  const totalRevenue = orders.reduce(
+    (sum, o) => (o.isPaid ? sum + (o.totalPrice || 0) : sum),
+    0
+  );
+  const pendingCount = orders.filter((o) => o.orderStatus === 'Processing').length;
+  const readyCount = orders.filter((o) => o.orderStatus === 'Ready to Ship').length;
   const deliveredCount = orders.filter((o) => o.orderStatus === 'Delivered').length;
 
-  if (error) {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4 px-4 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
-          <ShieldAlert size={32} />
-        </div>
-        <h2 className="font-serif text-2xl font-bold text-text-primary">{error}</h2>
-        <p className="text-text-muted text-sm font-sans max-w-md">
-          You must be logged into an administrator account to access logistics and fulfillment controls.
-        </p>
-        <Link to="/login" className="btn-gold text-sm px-6 py-2.5 mt-2">
-          Sign In as Admin
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {/* ── Toast Notification ───────────────────────────────────────────────── */}
+    <div className="space-y-6 max-w-7xl mx-auto font-sans text-slate-800 w-full overflow-hidden">
+      
+      {/* ── Toast Notification ──────────────────────────────────────────────── */}
       <AnimatePresence>
         {toastMessage && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-6 right-6 z-50 px-4 py-3 rounded-xl border flex items-center gap-2.5 shadow-2xl ${
-              toastMessage.type === 'error'
-                ? 'bg-red-500/15 border-red-500/30 text-red-300'
-                : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+            className={`fixed top-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-semibold text-white ${
+              toastMessage.type === 'error' ? 'bg-red-600' : 'bg-slate-900'
             }`}
-            style={{ backdropFilter: 'blur(12px)' }}
           >
             {toastMessage.type === 'error' ? (
-              <AlertCircle size={18} />
+              <AlertCircle size={16} />
             ) : (
-              <CheckCircle2 size={18} />
+              <CheckCircle2 size={16} className="text-emerald-400" />
             )}
-            <span className="text-sm font-sans font-medium">{toastMessage.text}</span>
+            <span>{toastMessage.text}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Dashboard Header ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      {/* ── Page Header ─────────────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div>
-          <span className="text-gold text-xs font-sans tracking-widest uppercase flex items-center gap-1.5 mb-1">
-            <Package size={13} /> Logistics & Fulfillment
-          </span>
-          <h1 className="font-serif text-3xl md:text-4xl font-bold text-text-primary">
-            Admin Order Portal
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            Orders &amp; Fulfillment
           </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Track customer orders, manage shipments, and print packing slips across Pakistan.
+          </p>
         </div>
 
         <button
           onClick={fetchOrders}
-          disabled={loading}
-          className="btn-outline-gold text-xs px-4 py-2 rounded-xl flex items-center gap-2 self-start md:self-auto"
+          className="px-3.5 py-2.5 sm:py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Refresh Orders
+          <span>Refresh Feed</span>
         </button>
       </div>
 
-      {/* ── KPI Analytics Summary ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="card p-5">
-          <div className="flex items-center justify-between text-text-muted mb-2">
-            <span className="text-xs font-sans uppercase tracking-wider">Total Revenue</span>
-            <DollarSign size={16} className="text-gold" />
+      {/* ── 1. KPI Summary Cards Grid (Mobile Responsive 1/2/4 cols) ─────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
+        
+        {/* Total Revenue */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Paid Revenue
+            </p>
+            <p className="text-xl sm:text-2xl font-bold text-slate-900">
+              {formatPKR(totalRevenue)}
+            </p>
+            <span className="text-[11px] text-slate-400 font-medium">
+              Confirmed transactions
+            </span>
           </div>
-          <p className="font-serif text-2xl font-bold text-text-primary">{formatPKR(totalRevenue)}</p>
-          <p className="text-[11px] text-text-muted font-sans mt-1">From confirmed payments</p>
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center flex-shrink-0">
+            <DollarSign size={18} />
+          </div>
         </div>
 
-        <div className="card p-5">
-          <div className="flex items-center justify-between text-text-muted mb-2">
-            <span className="text-xs font-sans uppercase tracking-wider">Processing</span>
-            <Clock size={16} className="text-amber-400" />
+        {/* Pending Processing */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Processing
+            </p>
+            <p className="text-xl sm:text-2xl font-bold text-amber-700">
+              {pendingCount}
+            </p>
+            <span className="text-[11px] text-slate-400 font-medium">
+              Awaiting packaging
+            </span>
           </div>
-          <p className="font-serif text-2xl font-bold text-amber-400">{processingCount}</p>
-          <p className="text-[11px] text-text-muted font-sans mt-1">Requires AWB dispatch</p>
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+            <Clock size={18} />
+          </div>
         </div>
 
-        <div className="card p-5">
-          <div className="flex items-center justify-between text-text-muted mb-2">
-            <span className="text-xs font-sans uppercase tracking-wider">Ready to Ship</span>
-            <Truck size={16} className="text-blue-400" />
+        {/* Ready to Ship */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Ready to Ship
+            </p>
+            <p className="text-xl sm:text-2xl font-bold text-blue-700">
+              {readyCount}
+            </p>
+            <span className="text-[11px] text-slate-400 font-medium">
+              Courier pickup ready
+            </span>
           </div>
-          <p className="font-serif text-2xl font-bold text-blue-400">{readyToShipCount}</p>
-          <p className="text-[11px] text-text-muted font-sans mt-1">AWB booked with courier</p>
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+            <Truck size={18} />
+          </div>
         </div>
 
-        <div className="card p-5">
-          <div className="flex items-center justify-between text-text-muted mb-2">
-            <span className="text-xs font-sans uppercase tracking-wider">Delivered</span>
-            <CheckCircle2 size={16} className="text-emerald-400" />
+        {/* Completed Delivered */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Delivered
+            </p>
+            <p className="text-xl sm:text-2xl font-bold text-emerald-700">
+              {deliveredCount}
+            </p>
+            <span className="text-[11px] text-slate-400 font-medium">
+              Doorstep completed
+            </span>
           </div>
-          <p className="font-serif text-2xl font-bold text-emerald-400">{deliveredCount}</p>
-          <p className="text-[11px] text-text-muted font-sans mt-1">Completed orders</p>
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 size={18} />
+          </div>
         </div>
+
       </div>
 
-      {/* ── Filter Bar & Search ──────────────────────────────────────────────── */}
-      <div className="card p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-        {/* Status Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto scrollbar-hide">
-          {['ALL', 'Processing', 'Ready to Ship', 'Shipped', 'Delivered', 'Cancelled'].map(
-            (status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-sans font-medium whitespace-nowrap transition-all duration-200 ${
-                  statusFilter === status
-                    ? 'bg-gold text-midnight font-semibold shadow-gold-sm'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-2'
-                }`}
-              >
-                {status}
-              </button>
-            )
-          )}
-        </div>
-
+      {/* ── 2. Search & Status Filter Bar (Mobile Responsive) ────────────────── */}
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        
         {/* Search */}
-        <div className="relative w-full md:w-72">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+        <div className="relative flex-1">
+          <Search
+            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          />
           <input
             type="text"
-            placeholder="Search Ref, Customer, Tracking..."
+            placeholder="Search by order ID, customer name, phone, or city..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="input-luxury text-xs pl-8 py-2 rounded-lg w-full"
+            className="w-full pl-10 pr-4 py-2.5 sm:py-2 text-xs rounded-xl border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-colors bg-white text-slate-900"
           />
+        </div>
+
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 md:pb-0">
+          {[
+            { label: 'All', value: 'ALL' },
+            { label: 'Processing', value: 'Processing' },
+            { label: 'Ready to Ship', value: 'Ready to Ship' },
+            { label: 'Shipped', value: 'Shipped' },
+            { label: 'Delivered', value: 'Delivered' },
+            { label: 'Cancelled', value: 'Cancelled' },
+          ].map((tab) => {
+            const isSelected = statusFilter === tab.value;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setStatusFilter(tab.value)}
+                className={`px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  isSelected
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ── Order Table ──────────────────────────────────────────────────────── */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-white/8 bg-surface-2 text-text-muted text-[11px] font-sans uppercase tracking-wider">
-                <th className="py-3.5 px-4 font-medium">Order Ref</th>
-                <th className="py-3.5 px-4 font-medium">Customer & Address</th>
-                <th className="py-3.5 px-4 font-medium">Items</th>
-                <th className="py-3.5 px-4 font-medium">Total & Payment</th>
-                <th className="py-3.5 px-4 font-medium">Order Status</th>
-                <th className="py-3.5 px-4 font-medium">Logistics & AWB</th>
-                <th className="py-3.5 px-4 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
+      {/* ── 3. Orders Data Table (Mobile Horizontal Scrolling) ───────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden w-full">
+        {loading ? (
+          <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-400">
+            <Loader2 size={28} className="animate-spin text-slate-600" />
+            <p className="text-xs font-medium">Loading orders feed...</p>
+          </div>
+        ) : error ? (
+          <div className="py-16 text-center text-red-500 text-xs">
+            <p>{error}</p>
+            <button
+              onClick={fetchOrders}
+              className="mt-3 px-4 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 font-semibold"
+            >
+              Retry
+            </button>
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="py-20 text-center space-y-3">
+            <p className="text-slate-500 text-xs font-medium">
+              No orders found matching your criteria.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto w-full scrollbar-thin">
+            <table className="w-full text-left text-xs min-w-[700px]">
+              <thead className="bg-slate-50 border-b border-slate-200/80 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="py-3.5 px-5">Order Reference</th>
+                  <th className="py-3.5 px-4">Customer &amp; Destination</th>
+                  <th className="py-3.5 px-4">Flacons Ordered</th>
+                  <th className="py-3.5 px-4">Payment &amp; Amount</th>
+                  <th className="py-3.5 px-4">Fulfillment Status</th>
+                  <th className="py-3.5 px-5 text-right">Actions</th>
+                </tr>
+              </thead>
 
-            <tbody className="divide-y divide-white/5 text-sm font-sans">
-              {loading ? (
-                <tr>
-                  <td colSpan="7" className="py-12 text-center text-text-muted">
-                    <Loader2 size={24} className="animate-spin mx-auto mb-2 text-gold" />
-                    Loading orders...
-                  </td>
-                </tr>
-              ) : filteredOrders.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="py-12 text-center text-text-muted">
-                    No orders found matching criteria.
-                  </td>
-                </tr>
-              ) : (
-                filteredOrders.map((order) => {
-                  const orderRef = `MA-${order._id.slice(-8).toUpperCase()}`;
-                  const isUpdatingStatus = actionLoading[`status-${order._id}`];
-                  const isGeneratingAWB = actionLoading[`awb-${order._id}`];
-                  const isDownloadingInv = actionLoading[`inv-${order._id}`];
-                  const statusStyle = STATUS_CONFIG[order.orderStatus] || STATUS_CONFIG.Processing;
+              <tbody className="divide-y divide-slate-100 text-slate-700">
+                {filteredOrders.map((order) => {
+                  const statusInfo =
+                    STATUS_CONFIG[order.orderStatus] || STATUS_CONFIG.Processing;
+                  const dateStr = new Date(order.createdAt).toLocaleDateString(
+                    'en-PK',
+                    {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    }
+                  );
 
                   return (
                     <tr
                       key={order._id}
-                      className="hover:bg-surface-2/40 transition-colors duration-150"
+                      className="hover:bg-slate-50/70 transition-colors"
                     >
-                      {/* 1. Order Ref & Date */}
-                      <td className="py-4 px-4 align-top">
-                        <span className="font-mono font-semibold text-gold text-xs block">
-                          {orderRef}
-                        </span>
-                        <span className="text-[11px] text-text-muted block mt-0.5">
-                          {new Date(order.createdAt).toLocaleDateString('en-PK', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </td>
-
-                      {/* 2. Customer & Address */}
-                      <td className="py-4 px-4 align-top">
-                        <div className="font-medium text-text-primary text-xs">
-                          {order.shippingAddress?.fullName || 'N/A'}
-                        </div>
-                        <div className="text-[11px] text-text-muted mt-0.5">
-                          {order.shippingAddress?.phone}
-                        </div>
-                        <div className="text-[11px] text-text-secondary mt-0.5 line-clamp-1 max-w-[200px]" title={`${order.shippingAddress?.addressLine1}, ${order.shippingAddress?.city}`}>
-                          {order.shippingAddress?.city}, {order.shippingAddress?.province}
+                      {/* Order Ref & Date */}
+                      <td className="py-4 px-5 whitespace-nowrap">
+                        <div className="space-y-0.5">
+                          <span className="font-mono font-bold text-slate-900 text-xs block">
+                            #{order._id.slice(-6).toUpperCase()}
+                          </span>
+                          <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                            <Calendar size={11} /> {dateStr}
+                          </span>
                         </div>
                       </td>
 
-                      {/* 3. Items Ordered */}
-                      <td className="py-4 px-4 align-top">
-                        <div className="space-y-1 max-w-[180px]">
-                          {order.cartItems.map((item, idx) => (
-                            <div key={idx} className="text-[11px] text-text-secondary line-clamp-1">
-                              <span className="text-text-primary font-medium">{item.quantity}x</span>{' '}
-                              {item.name} ({item.size}ml)
+                      {/* Customer Details */}
+                      <td className="py-4 px-4 whitespace-nowrap">
+                        <div className="space-y-0.5">
+                          <p className="font-semibold text-slate-900 text-xs">
+                            {order.shippingAddress?.fullName || 'Guest Customer'}
+                          </p>
+                          <a
+                            href={`tel:${order.shippingAddress?.phone}`}
+                            className="text-[11px] text-slate-500 hover:text-slate-900 flex items-center gap-1"
+                          >
+                            <Phone size={11} className="text-slate-400" />
+                            <span>{order.shippingAddress?.phone}</span>
+                          </a>
+                          <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                            <MapPin size={11} className="text-slate-400" />
+                            <span>
+                              {order.shippingAddress?.city}, {order.shippingAddress?.province}
+                            </span>
+                          </p>
+                        </div>
+                      </td>
+
+                      {/* Items Ordered */}
+                      <td className="py-4 px-4">
+                        <div className="space-y-1 min-w-[140px]">
+                          {(order.cartItems || []).map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="text-[11px] text-slate-700 flex items-center gap-1.5"
+                            >
+                              <span className="w-4 h-4 rounded bg-slate-100 text-slate-600 font-bold text-[10px] flex items-center justify-center flex-shrink-0">
+                                {item.quantity}
+                              </span>
+                              <span className="font-medium truncate max-w-[130px]">
+                                {item.name}
+                              </span>
                             </div>
                           ))}
                         </div>
                       </td>
 
-                      {/* 4. Total & Payment */}
-                      <td className="py-4 px-4 align-top">
-                        <div className="font-semibold text-text-primary text-xs">
-                          {formatPKR(order.totalAmount)}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 border border-white/8 text-text-secondary">
-                            {order.paymentMethod}
-                          </span>
+                      {/* Payment Method & Total */}
+                      <td className="py-4 px-4 whitespace-nowrap">
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-900 text-sm">
+                            {formatPKR(order.totalPrice)}
+                          </p>
                           <span
-                            className={`text-[10px] px-1.5 py-0.5 rounded ${
-                              order.paymentStatus === 'Paid'
-                                ? 'text-emerald-400 bg-emerald-500/10'
-                                : 'text-amber-400 bg-amber-500/10'
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
+                              order.paymentMethod === 'COD'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-sky-50 text-sky-700 border-sky-200'
                             }`}
                           >
-                            {order.paymentStatus}
+                            {order.paymentMethod === 'COD' ? 'Cash on Delivery' : order.paymentMethod}
                           </span>
                         </div>
                       </td>
 
-                      {/* 5. Order Status (Interactive Dropdown) */}
-                      <td className="py-4 px-4 align-top">
-                        <div className="relative inline-block">
-                          <select
-                            disabled={isUpdatingStatus}
-                            value={order.orderStatus}
-                            onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                            className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 border appearance-none pr-7 cursor-pointer transition-all bg-surface-2 ${statusStyle.badge}`}
-                          >
-                            <option value="Processing">Processing</option>
-                            <option value="Ready to Ship">Ready to Ship</option>
-                            <option value="Shipped">Shipped</option>
-                            <option value="Delivered">Delivered</option>
-                            <option value="Cancelled">Cancelled</option>
-                          </select>
-                          <ChevronDown
-                            size={12}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60"
-                          />
+                      {/* Status Update Dropdown */}
+                      <td className="py-4 px-4 whitespace-nowrap">
+                        <div className="space-y-1.5">
+                          <div className="relative">
+                            <select
+                              value={order.orderStatus}
+                              onChange={(e) =>
+                                handleStatusChange(order._id, e.target.value)
+                              }
+                              disabled={actionLoading[`status-${order._id}`]}
+                              className={`py-1.5 pl-2.5 pr-7 rounded-lg text-xs font-bold border appearance-none cursor-pointer ${statusInfo.badge}`}
+                            >
+                              <option value="Processing">Processing</option>
+                              <option value="Ready to Ship">Ready to Ship</option>
+                              <option value="Shipped">Shipped</option>
+                              <option value="Delivered">Delivered</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </select>
+                            <ChevronDown
+                              size={12}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60"
+                            />
+                          </div>
+
+                          {order.trackingNumber && (
+                            <p className="text-[10px] font-mono text-slate-500">
+                              Trk: {order.trackingNumber}
+                            </p>
+                          )}
                         </div>
                       </td>
 
-                      {/* 6. Logistics & AWB */}
-                      <td className="py-4 px-4 align-top">
-                        {order.courierTrackingNumber ? (
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono text-xs font-semibold text-gold">
-                                {order.courierTrackingNumber}
-                              </span>
-                              {order.awbUrl && (
-                                <a
-                                  href={order.awbUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-text-muted hover:text-gold transition-colors"
-                                  title="Track on Courier Portal"
-                                >
-                                  <ExternalLink size={12} />
-                                </a>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-text-muted block mt-0.5">
-                              Courier: {order.courierName || 'Trax Logistics'}
-                            </span>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleGenerateAWB(order._id)}
-                            disabled={isGeneratingAWB}
-                            className="btn-gold text-[11px] py-1.5 px-3 rounded-lg flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50 shadow-none"
-                          >
-                            {isGeneratingAWB ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <Truck size={12} />
-                            )}
-                            Generate AWB
-                          </button>
-                        )}
-                      </td>
-
-                      {/* 7. Action: PDF Invoice */}
-                      <td className="py-4 px-4 align-top text-right">
+                      {/* Actions (Packing Slip) with generous touch padding */}
+                      <td className="py-4 px-5 text-right whitespace-nowrap">
                         <button
-                          onClick={() => handleDownloadInvoice(order._id, orderRef)}
-                          disabled={isDownloadingInv}
-                          className="btn-ghost border border-white/10 text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5 text-text-secondary hover:text-gold hover:border-gold/30 disabled:opacity-50"
-                          title="Download PDF Invoice"
+                          onClick={() => setSelectedOrderForSlip(order)}
+                          className="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                          title="Generate Packing Slip"
                         >
-                          {isDownloadingInv ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            <FileText size={13} />
-                          )}
-                          Invoice
+                          <FileText size={14} />
+                          <span>Slip</span>
                         </button>
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
+      {/* ── Packing Slip Modal (Mobile Viewport Optimized) ─────────────────── */}
+      <AnimatePresence>
+        {selectedOrderForSlip && (
+          <div className="fixed inset-0 z-50 p-3 sm:p-4 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg bg-white rounded-2xl border border-slate-200 shadow-2xl p-5 sm:p-6 space-y-5 text-slate-800 font-sans max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">
+                    Fulfillment Packing Slip
+                  </h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    Order #{selectedOrderForSlip._id}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedOrderForSlip(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Delivery info */}
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                <p className="font-bold text-slate-900">
+                  {selectedOrderForSlip.shippingAddress?.fullName}
+                </p>
+                <p className="text-slate-600">
+                  {selectedOrderForSlip.shippingAddress?.phone}
+                </p>
+                <p className="text-slate-600">
+                  {selectedOrderForSlip.shippingAddress?.addressLine1}
+                </p>
+                <p className="text-slate-600">
+                  {selectedOrderForSlip.shippingAddress?.city},{' '}
+                  {selectedOrderForSlip.shippingAddress?.province}
+                </p>
+              </div>
+
+              {/* Items */}
+              <div className="space-y-2 text-xs divide-y divide-slate-100">
+                {selectedOrderForSlip.cartItems?.map((item, i) => (
+                  <div key={i} className="pt-2 flex items-center justify-between">
+                    <span className="font-medium text-slate-900">
+                      {item.quantity}x {item.name}
+                    </span>
+                    <span className="font-mono text-slate-600">
+                      {formatPKR(item.price || 0)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-slate-200 font-bold text-sm">
+                <span>Total Due on Delivery (COD)</span>
+                <span className="text-slate-900">
+                  {formatPKR(selectedOrderForSlip.totalPrice)}
+                </span>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => window.print()}
+                  className="btn-gold flex-1 py-3 rounded-xl text-xs font-bold"
+                >
+                  Print Packing Slip
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

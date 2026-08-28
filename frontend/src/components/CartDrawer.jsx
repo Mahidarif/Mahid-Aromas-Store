@@ -1,238 +1,341 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Minus, ShoppingBag, ArrowRight, Trash2, PackageOpen } from 'lucide-react';
+import {
+  X,
+  Plus,
+  Minus,
+  ShoppingBag,
+  ArrowRight,
+  Trash2,
+  Sparkles,
+  Truck,
+  ShieldCheck,
+  ChevronLeft,
+} from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
-const formatPKR = (n) =>
-  new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 })
-    .format(n).replace('PKR', 'PKR ');
+const FREE_SHIPPING_THRESHOLD = 5000;
 
-// ─── Single cart row ──────────────────────────────────────────────────────────
-function CartItem({ item }) {
-  const { removeFromCart, updateQuantity } = useCart();
-  const { product, variation, quantity } = item;
-  const image = product.images?.[0];
+const formatPKR = (amount) =>
+  `Rs. ${Number(amount || 0).toLocaleString('en-PK')}`;
 
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20, height: 0 }}
-      transition={{ duration: 0.25 }}
-      className="flex gap-3 py-4 border-b border-white/5 last:border-0"
-    >
-      {/* Thumbnail */}
-      <Link
-        to={`/products/${product.slug || product._id}`}
-        className="flex-shrink-0 w-16 h-20 rounded-xl overflow-hidden bg-surface-2 block"
-      >
-        {image ? (
-          <img
-            src={image}
-            alt={product.name}
-            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-xl">🌸</div>
-        )}
-      </Link>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-sans tracking-widest text-gold/70 uppercase">{product.brand}</p>
-        <Link
-          to={`/products/${product.slug || product._id}`}
-          className="font-serif text-sm font-semibold text-text-primary line-clamp-1 hover:text-gold transition-colors mt-0.5"
-        >
-          {product.name}
-        </Link>
-
-        {/* Size & concentration badge */}
-        <div className="flex flex-wrap gap-1 mt-1.5">
-          <span className="px-2 py-0.5 rounded-md bg-surface-2 border border-white/8 text-[10px] font-sans text-text-secondary">
-            {variation.size}ml
-          </span>
-          <span className="px-2 py-0.5 rounded-md bg-surface-2 border border-white/8 text-[10px] font-sans text-text-muted">
-            {variation.concentration.split(' ')[0]}
-          </span>
-        </div>
-
-        {/* Quantity controls + price */}
-        <div className="flex items-center justify-between mt-2.5">
-          <div className="flex items-center border border-white/10 rounded-lg overflow-hidden">
-            <button
-              onClick={() =>
-                quantity > 1
-                  ? updateQuantity(variation._id, quantity - 1)
-                  : removeFromCart(variation._id)
-              }
-              className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-gold hover:bg-surface-2 transition-all"
-              aria-label="Decrease"
-            >
-              {quantity === 1 ? <Trash2 size={10} /> : <Minus size={10} />}
-            </button>
-            <span className="w-7 h-7 flex items-center justify-center text-xs font-sans text-text-primary border-x border-white/10 select-none">
-              {quantity}
-            </span>
-            <button
-              onClick={() => updateQuantity(variation._id, quantity + 1)}
-              disabled={quantity >= (variation.stockQuantity || 10)}
-              className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-gold hover:bg-surface-2 transition-all disabled:opacity-30"
-              aria-label="Increase"
-            >
-              <Plus size={10} />
-            </button>
-          </div>
-
-          <span className="font-serif text-sm font-semibold text-text-primary">
-            {formatPKR(variation.price * quantity)}
-          </span>
-        </div>
-      </div>
-
-      {/* Remove */}
-      <button
-        onClick={() => removeFromCart(variation._id)}
-        className="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-text-muted hover:text-red-400 hover:bg-red-400/10 transition-all mt-1"
-        aria-label="Remove item"
-      >
-        <X size={12} />
-      </button>
-    </motion.div>
-  );
-}
-
-// ─── CartDrawer ───────────────────────────────────────────────────────────────
+/**
+ * Mobile & Desktop CRO Luxury Slide-Out Cart Drawer
+ */
 export default function CartDrawer() {
-  const { cartItems, cartTotal, shippingFee, cartCount, isDrawerOpen, closeDrawer } = useCart();
-  const orderTotal = cartTotal + shippingFee;
+  const {
+    isDrawerOpen,
+    isCartOpen,
+    closeDrawer,
+    closeCart,
+    cartItems,
+    cartCount,
+    cartTotal,
+    removeFromCart,
+    updateQuantity,
+  } = useCart();
+
+  const navigate = useNavigate();
+  const isOpen = isDrawerOpen || isCartOpen;
+  const handleClose = closeDrawer || closeCart;
+
+  const amountToFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - cartTotal);
+  const freeShippingProgress = Math.min(
+    100,
+    (cartTotal / FREE_SHIPPING_THRESHOLD) * 100
+  );
+
+  const handleCheckout = () => {
+    handleClose();
+    navigate('/checkout');
+  };
 
   return (
     <AnimatePresence>
-      {isDrawerOpen && (
-        <>
-          {/* Backdrop */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Semi-transparent Dark Backdrop */}
           <motion.div
-            key="backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-50"
-            style={{ background: 'rgba(10,14,26,0.75)', backdropFilter: 'blur(4px)' }}
-            onClick={closeDrawer}
+            onClick={handleClose}
+            className="absolute inset-0 bg-midnight/85 backdrop-blur-md"
           />
 
-          {/* Drawer panel */}
-          <motion.aside
-            key="drawer"
+          {/* Slide-In Drawer: 100% width on small screens, max-w-md on sm/desktop */}
+          <motion.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 250 }}
-            className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm flex flex-col shadow-2xl"
-            style={{ background: '#12182B', borderLeft: '1px solid rgba(255,255,255,0.06)' }}
-            aria-label="Shopping cart"
+            transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+            className="absolute inset-y-0 right-0 w-full sm:max-w-md flex"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
-              <div className="flex items-center gap-2">
-                <ShoppingBag size={18} className="text-gold" />
-                <h2 className="font-serif text-lg font-semibold text-text-primary">
-                  Your Bag
-                </h2>
-                {cartCount > 0 && (
-                  <span className="ml-1 min-w-[20px] h-5 rounded-full text-midnight text-[10px] font-bold flex items-center justify-center px-1.5"
-                        style={{ background: 'linear-gradient(135deg,#9B7A2A,#E8C97A)' }}>
-                    {cartCount}
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={closeDrawer}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface transition-all"
-                aria-label="Close cart"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Items list */}
-            <div className="flex-1 overflow-y-auto px-5 scrollbar-hide">
-              {cartItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full gap-5 text-center py-16">
-                  <div className="w-20 h-20 rounded-2xl bg-surface flex items-center justify-center border border-white/5">
-                    <PackageOpen size={32} className="text-text-muted" />
+            <div className="w-full bg-midnight border-l border-white/10 shadow-2xl flex flex-col justify-between overflow-hidden">
+              
+              {/* Drawer Header */}
+              <div className="p-4 sm:p-6 border-b border-white/8 flex items-center justify-between bg-surface-2/40 flex-shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-midnight font-serif font-bold text-sm shadow-gold-sm"
+                    style={{ background: 'linear-gradient(135deg, #9B7A2A, #E8C97A)' }}
+                  >
+                    <ShoppingBag size={16} />
                   </div>
                   <div>
-                    <p className="font-serif text-lg text-text-primary">Your bag is empty</p>
-                    <p className="text-text-muted text-sm font-sans mt-1">Discover our luxury fragrances</p>
-                  </div>
-                  <button
-                    onClick={closeDrawer}
-                    className="btn-gold px-6 py-2.5 text-sm"
-                  >
-                    Shop Now
-                  </button>
-                </div>
-              ) : (
-                <AnimatePresence mode="popLayout">
-                  {cartItems.map((item) => (
-                    <CartItem key={item.variation._id} item={item} />
-                  ))}
-                </AnimatePresence>
-              )}
-            </div>
-
-            {/* Footer — only visible when cart has items */}
-            {cartItems.length > 0 && (
-              <div className="border-t border-white/5 px-5 py-5 space-y-4">
-                {/* Price breakdown */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm font-sans">
-                    <span className="text-text-secondary">Subtotal</span>
-                    <span className="text-text-primary">{formatPKR(cartTotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-sans">
-                    <span className="text-text-secondary">Shipping</span>
-                    <span className={shippingFee === 0 ? 'text-green-400' : 'text-text-primary'}>
-                      {shippingFee === 0 ? 'Free' : formatPKR(shippingFee)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-t border-white/5 pt-2">
-                    <span className="font-sans font-medium text-text-primary">Total</span>
-                    <span className="font-serif text-xl font-bold text-text-primary">
-                      {formatPKR(orderTotal)}
-                    </span>
-                  </div>
-                  {shippingFee > 0 && (
-                    <p className="text-[10px] text-text-muted font-sans text-center">
-                      Add {formatPKR(5000 - cartTotal)} more for free shipping
+                    <h2 className="font-serif text-base sm:text-lg font-bold text-text-primary leading-tight">
+                      Olfactory Bag
+                    </h2>
+                    <p className="text-[11px] font-sans text-text-muted">
+                      {cartCount} {cartCount === 1 ? 'flacon' : 'flacons'} selected
                     </p>
-                  )}
+                  </div>
                 </div>
-
-                {/* CTA */}
-                <Link
-                  to="/checkout"
-                  onClick={closeDrawer}
-                  className="btn-gold w-full py-3.5 text-sm rounded-xl group"
-                >
-                  Proceed to Checkout
-                  <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" />
-                </Link>
 
                 <button
-                  onClick={closeDrawer}
-                  className="w-full text-center text-xs text-text-muted hover:text-text-secondary font-sans transition-colors"
+                  type="button"
+                  onClick={handleClose}
+                  className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors cursor-pointer"
+                  aria-label="Close bag"
                 >
-                  Continue Shopping
+                  <X size={20} />
                 </button>
               </div>
-            )}
-          </motion.aside>
-        </>
+
+              {/* ── Free Shipping Visual Progress Bar (AOV Booster) ───────────── */}
+              <div className="px-4 sm:px-6 py-3 bg-surface-2/70 border-b border-white/5 space-y-2 flex-shrink-0">
+                <div className="flex items-center justify-between text-xs font-sans">
+                  <span className="text-text-muted flex items-center gap-1.5 font-medium">
+                    <Truck size={14} className="text-gold flex-shrink-0" />
+                    {amountToFreeShipping > 0 ? (
+                      <span>
+                        Add <strong className="text-gold font-bold">{formatPKR(amountToFreeShipping)}</strong> more to unlock <span className="text-emerald-400 font-semibold">Free Delivery!</span>
+                      </span>
+                    ) : (
+                      <span className="text-emerald-400 font-bold flex items-center gap-1">
+                        <Sparkles size={13} /> Complimentary Nationwide Delivery Unlocked!
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${freeShippingProgress}%` }}
+                    transition={{ duration: 0.5 }}
+                    className="h-full rounded-full"
+                    style={{
+                      background:
+                        amountToFreeShipping === 0
+                          ? 'linear-gradient(90deg, #10B981, #34D399)'
+                          : 'linear-gradient(90deg, #9B7A2A, #E8C97A)',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Items List (Scrollable) */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5 divide-y divide-white/5">
+                {cartItems.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-16">
+                    <div className="w-14 h-14 rounded-2xl bg-surface-2 border border-gold/20 flex items-center justify-center text-gold text-2xl">
+                      🌸
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="font-serif text-lg font-bold text-text-primary">
+                        Your Bag is Empty
+                      </h3>
+                      <p className="text-xs font-sans text-text-muted max-w-xs">
+                        Explore our handcrafted extraits and discover your signature scent.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleClose();
+                        navigate('/collections');
+                      }}
+                      className="btn-gold text-xs px-6 py-2.5 rounded-xl mt-1 font-bold uppercase tracking-wider"
+                    >
+                      Discover Fragrances
+                    </button>
+                  </div>
+                ) : (
+                  cartItems.map((item) => {
+                    const { product, variation, quantity } = item;
+                    const itemKey = `${product._id}-${variation._id}`;
+                    const imgUrl =
+                      product.images?.[0] ||
+                      'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=400&auto=format&fit=crop&q=80';
+
+                    return (
+                      <motion.div
+                        key={itemKey}
+                        layout
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="pt-3.5 first:pt-0 flex gap-3 sm:gap-4"
+                      >
+                        {/* Thumbnail */}
+                        <div className="w-16 sm:w-20 aspect-[3/4] rounded-xl overflow-hidden bg-surface-2 border border-white/10 flex-shrink-0 relative">
+                          <img
+                            src={imgUrl}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <div>
+                            <p className="text-[9px] sm:text-[10px] font-sans tracking-widest uppercase text-text-muted truncate">
+                              {product.brand || 'Mahid Aromas'}
+                            </p>
+                            <h4 className="font-serif text-sm sm:text-base font-bold text-text-primary truncate">
+                              {product.name}
+                            </h4>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="px-1.5 py-0.5 rounded bg-gold/15 border border-gold/30 text-[9px] font-sans font-bold text-gold">
+                                {variation.size} ml
+                              </span>
+                              <span className="text-[10px] font-sans text-text-muted truncate">
+                                {variation.concentration || 'Extrait'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Controls */}
+                          <div className="flex items-center justify-between pt-1.5">
+                            <div className="flex items-center border border-white/15 bg-surface-2 rounded-lg overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateQuantity(
+                                    variation._id,
+                                    Math.max(1, quantity - 1)
+                                  )
+                                }
+                                className="w-7 h-7 flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface transition-colors cursor-pointer"
+                                aria-label="Decrease quantity"
+                              >
+                                <Minus size={12} />
+                              </button>
+                              <span className="w-7 h-7 flex items-center justify-center text-xs font-sans font-bold text-text-primary border-x border-white/10 select-none">
+                                {quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateQuantity(variation._id, quantity + 1)
+                                }
+                                className="w-7 h-7 flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface transition-colors cursor-pointer"
+                                aria-label="Increase quantity"
+                              >
+                                <Plus size={12} />
+                              </button>
+                            </div>
+
+                            <div className="flex items-center gap-2.5">
+                              <span className="font-serif font-bold text-xs sm:text-sm text-gold">
+                                {formatPKR(variation.price * quantity)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeFromCart(variation._id)}
+                                className="text-text-muted hover:text-red-400 p-1 cursor-pointer"
+                                aria-label="Remove item"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Drawer Footer */}
+              {cartItems.length > 0 && (
+                <div className="p-4 sm:p-6 border-t border-white/10 bg-surface-2/60 space-y-3.5 flex-shrink-0">
+                  <div className="space-y-1 text-xs font-sans">
+                    <div className="flex items-center justify-between text-text-muted">
+                      <span>Subtotal</span>
+                      <span className="text-text-primary font-medium">
+                        {formatPKR(cartTotal)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-text-muted">
+                      <span>Nationwide Delivery</span>
+                      <span>
+                        {cartTotal >= FREE_SHIPPING_THRESHOLD ? (
+                          <span className="text-emerald-400 font-bold uppercase text-[9px] tracking-wider">
+                            Free Delivery
+                          </span>
+                        ) : (
+                          'Rs. 250'
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="flex items-baseline justify-between pt-1.5 border-t border-white/5 text-sm">
+                      <span className="font-serif font-bold text-text-primary">
+                        Estimated Total
+                      </span>
+                      <span className="font-serif font-bold text-base sm:text-lg text-gold">
+                        {formatPKR(
+                          cartTotal +
+                            (cartTotal >= FREE_SHIPPING_THRESHOLD ? 0 : 250)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Primary & Frictionless Exit CTAs */}
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={handleCheckout}
+                      className="btn-gold w-full py-3.5 sm:py-4 rounded-xl font-sans font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-gold group cursor-pointer"
+                    >
+                      <span>Proceed to Checkout</span>
+                      <ArrowRight
+                        size={14}
+                        className="transition-transform duration-300 group-hover:translate-x-1"
+                      />
+                    </button>
+
+                    {/* Frictionless Exit Button */}
+                    <button
+                      type="button"
+                      onClick={handleClose}
+                      className="w-full py-2.5 rounded-xl border border-white/10 hover:border-white/20 text-text-muted hover:text-text-primary text-xs font-sans font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <ChevronLeft size={14} />
+                      <span>Continue Shopping</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-3 text-[10px] font-sans text-text-muted pt-1">
+                    <span className="flex items-center gap-1">
+                      <Truck size={12} className="text-gold" /> Cash on Delivery
+                    </span>
+                    <span>&bull;</span>
+                    <span className="flex items-center gap-1">
+                      <ShieldCheck size={12} className="text-gold" /> 100% Authentic Extraits
+                    </span>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );

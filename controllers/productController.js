@@ -70,17 +70,32 @@ const getProducts = async (req, res, next) => {
 };
 
 // ─── GET /api/products/:id ────────────────────────────────────────────────────
-// Accepts either a MongoDB ObjectId or a slug (e.g. "bleu-de-chanel")
+// Accepts MongoDB ObjectId, slug (e.g. "oud-royale"), or product identifier
 const getProductById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    let product = null;
 
-    // Try slug first (URL-friendly), fall back to ObjectId
-    const query = id.match(/^[0-9a-fA-F]{24}$/)
-      ? { _id: id }
-      : { slug: id };
+    // 1. If valid 24-hex ObjectId, try finding by _id first
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      product = await Product.findById(id);
+    }
 
-    const product = await Product.findOne({ ...query, isPublished: true });
+    // 2. If not found or not ObjectId, search by slug
+    if (!product) {
+      product = await Product.findOne({ slug: id.toLowerCase().trim() });
+    }
+
+    // 3. Fallback: search by name (case-insensitive) or partial slug
+    if (!product) {
+      const formattedName = id.replace(/-/g, ' ');
+      product = await Product.findOne({
+        $or: [
+          { name: { $regex: new RegExp(`^${formattedName}$`, 'i') } },
+          { slug: { $regex: new RegExp(`^${id}$`, 'i') } },
+        ],
+      });
+    }
 
     if (!product) {
       const err = new Error('Product not found');
@@ -94,13 +109,15 @@ const getProductById = async (req, res, next) => {
   }
 };
 
+const Order   = require('../models/Order');
+
 // ─── POST /api/products ───────────────────────────────────────────────────────
 // Admin only.  Creates a new product.
 const createProduct = async (req, res, next) => {
   try {
     const {
       name, brand, shortDescription, description,
-      fragranceFamily, gender, notes, variations,
+      fragranceFamily, gender, season, notes, variations,
       images, tags, isPublished,
     } = req.body;
 
@@ -113,15 +130,15 @@ const createProduct = async (req, res, next) => {
 
     const product = await Product.create({
       name, brand, shortDescription, description,
-      fragranceFamily, gender, notes, variations,
+      fragranceFamily, gender, season, notes, variations,
       images: images || [],
       tags:   tags   || [],
-      isPublished: isPublished ?? false,
+      isPublished: isPublished ?? true,
     });
 
     res.status(201).json({
       success: true,
-      message: 'Product created',
+      message: 'Product created successfully',
       data:    product,
     });
   } catch (err) {
@@ -145,7 +162,7 @@ const updateProduct = async (req, res, next) => {
     // Fields that can be updated freely
     const updatableFields = [
       'name', 'brand', 'shortDescription', 'description',
-      'fragranceFamily', 'gender', 'notes', 'images',
+      'fragranceFamily', 'gender', 'season', 'notes', 'images',
       'tags', 'isPublished', 'rating', 'numReviews',
     ];
 
@@ -185,7 +202,7 @@ const updateProduct = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Product updated',
+      message: 'Product updated successfully',
       data:    updatedProduct,
     });
   } catch (err) {
@@ -194,7 +211,7 @@ const updateProduct = async (req, res, next) => {
 };
 
 // ─── DELETE /api/products/:id ─────────────────────────────────────────────────
-// Admin only.  Soft-delete by unpublishing rather than hard delete.
+// Admin only. Soft-delete by unpublishing to protect order history references.
 const deleteProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -205,13 +222,34 @@ const deleteProduct = async (req, res, next) => {
       return next(err);
     }
 
-    // Soft delete: mark as unpublished so order history still resolves the reference
+    // Check if hard delete was explicitly requested
+    if (req.query.permanent === 'true') {
+      const existingOrder = await Order.findOne({ 'orderItems.product': product._id });
+      if (existingOrder) {
+        const err = new Error(
+          'Cannot permanently delete product: Customer orders are linked to it. Product will be unpublished instead.'
+        );
+        err.statusCode = 400;
+        product.isPublished = false;
+        await product.save();
+        return next(err);
+      }
+
+      await Product.findByIdAndDelete(product._id);
+      return res.status(200).json({
+        success: true,
+        message: 'Product permanently deleted',
+      });
+    }
+
+    // Default: Soft delete by unpublishing
     product.isPublished = false;
     await product.save();
 
     res.status(200).json({
       success: true,
       message: 'Product unpublished (soft-deleted)',
+      data:    product,
     });
   } catch (err) {
     next(err);

@@ -263,9 +263,13 @@ const importData = async () => {
     await User.deleteMany();
     console.log('🗑️   Existing data cleared');
 
-    // Insert users (passwords are hashed by the pre-save hook)
-    const createdUsers = await User.insertMany(users);
-    const adminUser    = createdUsers[0];
+    // Insert users with pre-save hooks (passwords hashed by pre-save hook)
+    const createdUsers = [];
+    for (const u of users) {
+      const created = await User.create(u);
+      createdUsers.push(created);
+    }
+    const adminUser = createdUsers[0];
     console.log(`👤  Users seeded (admin: ${adminUser.email})`);
 
     // Insert products with pre-save hooks (for automatic slug generation)

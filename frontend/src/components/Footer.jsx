@@ -3,10 +3,10 @@ import { ShieldCheck, RefreshCcw, Truck, Lock, ExternalLink } from 'lucide-react
 
 const FOOTER_LINKS = {
   Shop: [
-    { label: 'All Collections', href: '/products' },
-    { label: 'New Arrivals',    href: '/products?sort=newest' },
-    { label: 'Bestsellers',     href: '/products?tags=bestseller' },
-    { label: 'Gift Sets',       href: '/products?tags=gift-set' },
+    { label: 'All Collections', href: '/collections' },
+    { label: 'Best Sellers',    href: '/best-sellers' },
+    { label: 'For Men',         href: '/collections?gender=Men' },
+    { label: 'For Women',       href: '/collections?gender=Women' },
   ],
   Help: [
     { label: 'Track Order',   href: '/track' },
@@ -76,10 +76,11 @@ export default function Footer() {
           <div className="lg:col-span-2 space-y-5">
             {/* Logo */}
             <Link to="/" className="inline-flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                   style={{ background: 'linear-gradient(135deg, #9B7A2A, #E8C97A)' }}>
-                <span className="font-serif font-bold text-midnight">M</span>
-              </div>
+              <img
+                src="/logo-mark-white.png"
+                alt="Mahid Aromas Logo"
+                className="w-9 h-9 object-contain flex-shrink-0 drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)]"
+              />
               <div>
                 <span className="font-serif font-bold tracking-wide text-xl text-gold-shimmer">MAHID</span>
                 <span className="font-serif font-light text-xl text-text-secondary ml-1 tracking-widest"> AROMAS</span>
