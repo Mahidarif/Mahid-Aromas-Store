@@ -145,9 +145,11 @@ export default function CollectionsPage() {
     }
 
     if (activeGender !== 'All') {
-      result = result.filter(
-        (p) => (p.gender || 'Unisex').toLowerCase() === activeGender.toLowerCase()
-      );
+      const active = activeGender.toLowerCase();
+      result = result.filter((p) => {
+        const g = (p.gender || 'Unisex').toLowerCase();
+        return g === active || g === 'unisex';
+      });
     }
 
     if (activeFamily !== 'All') {
